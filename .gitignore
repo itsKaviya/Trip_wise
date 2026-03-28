@@ -1,0 +1,13 @@
+# Java build outputs
+/target/
+*.class
+
+# Node dependencies
+/node_modules/
+/frontend/node_modules/
+
+# IDE/editor
+/.idea/
+/.vscode/
+*.log
+.DS_Store
