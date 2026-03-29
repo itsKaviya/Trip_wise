@@ -13,19 +13,20 @@ import {
   Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import axios from 'axios';
+import { useAuth } from './AuthContext';
+import Login from './components/Login';
+import Register from './components/Register';
 
 const App = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
-  const [user, setUser] = useState({
-    name: 'Kaviya',
-    safeLimit: 120,
-    sleepStart: 22,
-    sleepEnd: 6
-  });
-  const [lastScore, setLastScore] = useState(85);
+  const [lastScore, setLastScore] = useState(0);
   const [showLogForm, setShowLogForm] = useState(false);
+  const [authView, setAuthView] = useState('login');
+
+  const { user, logout, loading: authLoading } = useAuth();
 
   // Form states
   const [logData, setLogData] = useState({
@@ -36,14 +37,20 @@ const App = () => {
   });
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    if (user) {
+      fetchHistory();
+    }
+  }, [user]);
 
   const fetchHistory = async () => {
     try {
-      const resp = await fetch(`/api/history?name=${user.name}`);
-      const data = await resp.json();
-      setHistory(data);
+      const resp = await axios.get('http://localhost:8080/api/history');
+      setHistory(resp.data);
+      if (resp.data.length > 0) {
+        // Simple score calculation for the most recent entry
+        const entry = resp.data[0];
+        setLastScore(Math.max(0, 100 - (entry.totalTime / 3)));
+      }
     } catch (e) {
       console.error('Failed to fetch history:', e);
     }
@@ -53,16 +60,8 @@ const App = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const resp = await fetch('/api/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...user,
-          ...logData
-        })
-      });
-      const result = await resp.json();
-      setLastScore(result.score);
+      const resp = await axios.post('http://localhost:8080/api/log', logData);
+      setLastScore(resp.data.score);
       setShowLogForm(false);
       fetchHistory();
     } catch (e) {
@@ -72,10 +71,17 @@ const App = () => {
     }
   };
 
-  const handleUpdateProfile = (e) => {
-    e.preventDefault();
-    setActiveTab('dashboard');
-  };
+  if (authLoading) {
+    return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+            <div className="loading-spinner"></div>
+        </div>
+    );
+  }
+
+  if (!user) {
+    return authView === 'login' ? <Login onSwitch={() => setAuthView('register')} /> : <Register onSwitch={() => setAuthView('login')} />;
+  }
 
   return (
     <div className="app-container">
@@ -98,7 +104,7 @@ const App = () => {
           </div>
         </nav>
 
-        <div className="nav-item">
+        <div className="nav-item" onClick={logout}>
           <LogOut size={20} /> Logout
         </div>
       </aside>
@@ -134,14 +140,14 @@ const App = () => {
               
               <div className="glass-panel stat-card">
                 <span className="stat-label"><Timer size={14} /> Daily Limit</span>
-                <span className="stat-value">{user.safeLimit}m</span>
+                <span className="stat-value">{user.dailySafeLimit}m</span>
                 <span style={{ color: 'var(--text-secondary)' }}>Target: Stay under limit</span>
               </div>
 
               <div className="glass-panel stat-card">
-                <span className="stat-label"><TrendingUp size={14} /> Active Streak</span>
-                <span className="stat-value">5 Days</span>
-                <span style={{ color: 'var(--success)' }}>Personal record!</span>
+                <span className="stat-label"><TrendingUp size={14} /> History Stats</span>
+                <span className="stat-value">{history.length}</span>
+                <span style={{ color: 'var(--success)' }}>Logged days</span>
               </div>
 
               {/* Recent Activity Mini-List */}
@@ -169,7 +175,7 @@ const App = () => {
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Total: {entry.totalTime} mins</div>
                         </div>
                       </div>
-                      <div style={{ fontWeight: 700 }}>{Math.max(0, 100 - (entry.totalTime/2))} Score</div>
+                      <div style={{ fontWeight: 700 }}>{Math.max(0, 100 - (entry.totalTime/3)).toFixed(0)} Score</div>
                     </div>
                   ))}
                   {history.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No history found. Try logging your first session!</p>}
@@ -209,6 +215,7 @@ const App = () => {
                   ))}
                 </tbody>
               </table>
+              {history.length === 0 && <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '2rem' }}>No records yet.</p>}
             </motion.div>
           )}
 
@@ -222,27 +229,23 @@ const App = () => {
               style={{ maxWidth: '600px' }}
             >
               <h2 style={{ marginBottom: '1.5rem' }}>Profile Settings</h2>
-              <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+              <div style={{ padding: '1rem', border: '1px dashed var(--glass-border)', borderRadius: '12px', color: 'var(--text-secondary)' }}>
+                Settings update via backend is coming in the next version. You can current view your profile below.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem', marginTop: '1.5rem' }}>
                 <div>
                   <label className="stat-label">Full Name</label>
-                  <input value={user.name} onChange={(e) => setUser({...user, name: e.target.value})} />
+                  <input readOnly value={user.name} />
+                </div>
+                <div>
+                  <label className="stat-label">Username</label>
+                  <input readOnly value={user.username} />
                 </div>
                 <div>
                   <label className="stat-label">Daily Safe Limit (mins)</label>
-                  <input type="number" value={user.safeLimit} onChange={(e) => setUser({...user, safeLimit: parseInt(e.target.value)})} />
+                  <input readOnly value={user.dailySafeLimit} />
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                  <div>
-                    <label className="stat-label">Sleep Start (24h)</label>
-                    <input type="number" value={user.sleepStart} onChange={(e) => setUser({...user, sleepStart: parseInt(e.target.value)})} />
-                  </div>
-                  <div>
-                    <label className="stat-label">Wake Up Hour</label>
-                    <input type="number" value={user.sleepEnd} onChange={(e) => setUser({...user, sleepEnd: parseInt(e.target.value)})} />
-                  </div>
-                </div>
-                <button style={{ marginTop: '1rem' }}>Save Preferences</button>
-              </form>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -272,19 +275,19 @@ const App = () => {
               <form onSubmit={handleLogSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <label className="stat-label">Study / Work (mins)</label>
-                  <input type="number" value={logData.study} onChange={(e) => setLogData({...logData, study: parseInt(e.target.value)})} />
+                  <input type="number" value={logData.study} onChange={(e) => setLogData({...logData, study: parseInt(e.target.value) || 0})} />
                 </div>
                 <div>
                   <label className="stat-label">Social Media (mins)</label>
-                  <input type="number" value={logData.social} onChange={(e) => setLogData({...logData, social: parseInt(e.target.value)})} />
+                  <input type="number" value={logData.social} onChange={(e) => setLogData({...logData, social: parseInt(e.target.value) || 0})} />
                 </div>
                 <div>
                   <label className="stat-label">Entertainment (mins)</label>
-                  <input type="number" value={logData.entertainment} onChange={(e) => setLogData({...logData, entertainment: parseInt(e.target.value)})} />
+                  <input type="number" value={logData.entertainment} onChange={(e) => setLogData({...logData, entertainment: parseInt(e.target.value) || 0})} />
                 </div>
                 <div>
                   <label className="stat-label">Peak Usage Hour (0-23)</label>
-                  <input type="number" value={logData.peakHour} onChange={(e) => setLogData({...logData, peakHour: parseInt(e.target.value)})} />
+                  <input type="number" value={logData.peakHour} onChange={(e) => setLogData({...logData, peakHour: parseInt(e.target.value) || 0})} />
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '1rem' }}>
                   <button type="submit" style={{ flex: 1 }}>{loading ? 'Processing...' : 'Submit Log'}</button>

@@ -1,24 +1,36 @@
 package com.detox;
+
+import jakarta.persistence.*;
 import java.time.LocalDate;
 
 /**
  * Holds one day's screen-time data for a user.
  */
+@Entity
+@Table(name = "screen_time_records")
 public class ScreenTimeRecord {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
     private LocalDate date;
-    private String userName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     private int studyTime;         // minutes
     private int socialTime;        // minutes
     private int entertainmentTime; // minutes
     private int totalTime;         // computed
     private int peakUsageHour;     // 0-23, optional
 
-    public ScreenTimeRecord() {} // Default constructor for JSON
+    public ScreenTimeRecord() {} // Default constructor for JPA
 
-    public ScreenTimeRecord(LocalDate date, String userName, int studyTime, int socialTime,
+    public ScreenTimeRecord(LocalDate date, User user, int studyTime, int socialTime,
                             int entertainmentTime, int totalTime, int peakUsageHour) {
         this.date = date;
-        this.userName = userName;
+        this.user = user;
         this.studyTime = studyTime;
         this.socialTime = socialTime;
         this.entertainmentTime = entertainmentTime;
@@ -26,44 +38,42 @@ public class ScreenTimeRecord {
         this.peakUsageHour = peakUsageHour;
     }
 
-    public ScreenTimeRecord(String userName, int studyTime, int socialTime,
+    public ScreenTimeRecord(User user, int studyTime, int socialTime,
                             int entertainmentTime, int peakUsageHour) {
-        this(LocalDate.now(), userName, studyTime, socialTime, entertainmentTime, 
+        this(LocalDate.now(), user, studyTime, socialTime, entertainmentTime, 
              studyTime + socialTime + entertainmentTime, peakUsageHour);
     }
 
-    // Getters
+    // Getters and Setters
+    public Long getId() { return id; }
+    public void setId(Long id) { this.id = id; }
+
     public LocalDate getDate()           { return date; }
-    public String getUserName()          { return userName; }
+    public void setDate(LocalDate date)    { this.date = date; }
+
+    public User getUser()                { return user; }
+    public void setUser(User user)       { this.user = user; }
+
     public int getStudyTime()            { return studyTime; }
+    public void setStudyTime(int time)   { this.studyTime = time; }
+
     public int getSocialTime()           { return socialTime; }
+    public void setSocialTime(int time)  { this.socialTime = time; }
+
     public int getEntertainmentTime()    { return entertainmentTime; }
+    public void setEntertainmentTime(int time) { this.entertainmentTime = time; }
+
     public int getTotalTime()            { return totalTime; }
+    public void setTotalTime(int time)   { this.totalTime = time; }
+
     public int getPeakUsageHour()        { return peakUsageHour; }
-
-    /** Comma-separated line for CSV persistence. */
-    public String toCsvLine() {
-        return String.join(",",
-            date.toString(),
-            userName,
-            String.valueOf(studyTime),
-            String.valueOf(socialTime),
-            String.valueOf(entertainmentTime),
-            String.valueOf(totalTime),
-            String.valueOf(peakUsageHour)
-        );
-    }
-
-    /** CSV header */
-    public static String csvHeader() {
-        return "Date,UserName,StudyTime,SocialTime,EntertainmentTime,TotalTime,PeakUsageHour";
-    }
+    public void setPeakUsageHour(int hour) { this.peakUsageHour = hour; }
 
     @Override
     public String toString() {
         return String.format(
             "[%s] %s | Study: %d | Social: %d | Entertainment: %d | Total: %d min | Peak Hour: %02d:00",
-            date, userName, studyTime, socialTime, entertainmentTime, totalTime, peakUsageHour
+            date, user != null ? user.getUsername() : "Unknown", studyTime, socialTime, entertainmentTime, totalTime, peakUsageHour
         );
     }
 }

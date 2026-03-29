@@ -1,14 +1,24 @@
 package com.detox;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
 /**
  * Tracker orchestrates a full session:
  * input → analyse → alert → save → report.
  */
+@Service
 public class Tracker {
 
-    private final Analyzer             analyzer    = new Analyzer();
-    private final AlertSystem          alertSystem  = new AlertSystem();
-    private final FileManager          fileManager  = new FileManager();
-    private final ReportGenerator      reporter     = new ReportGenerator();
+    @Autowired
+    private ScreenTimeRepository screenTimeRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    private final Analyzer analyzer = new Analyzer();
+    private final AlertSystem alertSystem = new AlertSystem();
+    private final ReportGenerator reporter = new ReportGenerator();
 
     /**
      * Runs the full tracking pipeline for one day's entry.
@@ -24,7 +34,7 @@ public class Tracker {
 
         // 1. Build the record
         ScreenTimeRecord record = new ScreenTimeRecord(
-            user.getName(), studyTime, socialTime, entertainmentTime, peakUsageHour
+            user, studyTime, socialTime, entertainmentTime, peakUsageHour
         );
 
         // 2. Analyse pattern
@@ -33,13 +43,18 @@ public class Tracker {
         // 3. Show alerts
         alertSystem.checkAndAlert(record, user);
 
-        // 4. Save to file
-        fileManager.saveRecord(record);
+        // 4. Save to database
+        screenTimeRepository.save(record);
 
-        // 5. Calculate streak
-        int streak = fileManager.calculateStreak(user.getName(), user.getDailySafeLimit());
+        // 5. Calculate streak (Simple JPA-based streak calculation)
+        int streak = calculateStreak(user);
 
         // 6. Print full report
         reporter.printDailyReport(record, user, streak);
+    }
+
+    private int calculateStreak(User user) {
+        // This is a simplified version for the report
+        return screenTimeRepository.findByUserOrderByDateDesc(user).size();
     }
 }

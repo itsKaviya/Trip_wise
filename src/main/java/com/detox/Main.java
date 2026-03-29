@@ -69,7 +69,7 @@ public class Main {
         int sleepStart  = readInt("  Sleep start hour in 24h format (e.g. 22 for 10 PM): ", 18, 23);
         int sleepEnd    = readInt("  Wake-up hour in 24h format (e.g. 6 for 6 AM): ", 3, 12);
 
-        User user = new User(name, safeLimit, sleepStart, sleepEnd);
+        User user = new User(name.toLowerCase().replace(" ", ""), "password", name, safeLimit, sleepStart, sleepEnd);
         System.out.println("\n✅ Profile saved: " + user);
         return user;
     }
