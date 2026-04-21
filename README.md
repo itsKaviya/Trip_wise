@@ -268,4 +268,4 @@ Update `axios.defaults.baseURL` in `AuthContext.js` to your production backend U
 
 ---
 
-Built with ❤️ by Ankit Singh using MERN Stack + Google Gemini AI
+Built with ❤️  using MERN Stack + Google Gemini AI
